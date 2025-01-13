@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Início - Gerenciador de Beach Tennis</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>BT Connect</h1>
+    </header>
+    <main id="index-page" class="container">
+        <section class="welcome-section">
+            <div class="section">
+                <div class="welcome-message">
+                    <h2>Bem-vindo ao Gerenciador de Beach Tennis!</h2>
+                    <p>Escolha a opção para organizar seu torneio:</p>
+                </div>
+                <div class="button-container">
+                    <div class="button-card" id="organogramaBtn" aria-label="Acessar Organograma do Torneio">
+                        <div class="button-label">CAMPEONATO</div>
+                        <img src="icon/trophy.svg" alt="Trophy Icon" class="icon">
+                    </div>
+                    <div class="button-card" id="informarDuplas" aria-label="Informar Duplas Manualmente">
+                        <div class="button-label">DUPLA MANUAL</div>
+                        <img src="icon/group.svg" alt="Groups" class="icon">
+                    </div>
+                    <div class="button-card" id="sortearDuplas" aria-label="Sortear Duplas Aleatoriamente">
+                        <div class="button-label">DUPLA ALEATÓRIA</div>
+                        <img src="icon/shuffle.svg" alt="Shuffle Icon" class="icon">
+                    </div>
+                </div>
+                <div class="button-group data-buttons">
+                    <button id="exportarDados" aria-label="Exportar Dados">Exportar Dados</button>
+                    <button id="importarDados" aria-label="Importar Dados">Importar Dados</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <main class="container fade-in-section" id="organogramaSection">
+        <section id="resultadosSection">
+            <div class="section">
+                <h1>RESULTADOS</h1>
+                <div id="placares" aria-live="polite">
+                    <!-- Os campos de placares dos jogos serão exibidos aqui -->
+                </div>
+            </div>
+            <div class="section" id="campeonatosSection">
+                <button id="verCampeonatosBtn" aria-label="Ver Campeonatos">Ver Campeonatos</button>
+                <div id="campeonatos"></div>
+            </div>
+            <div class="section" id="rankingSection">
+                <h2>Ranking</h2>
+                <label for="dataInicio">Data Início:</label>
+                <input type="date" id="dataInicio">
+                <label for="dataFim">Data Fim:</label>
+                <input type="date" id="dataFim">
+                <button id="rankingBtn" aria-label="Gerar Ranking">Gerar Ranking</button>
+                <div id="ranking"></div>
+            </div>
+        </section>
+    </main>
+    <script src="home.js"></script>
+    <footer>
+        <p class="developed-by">Desenvolvido por Antônio Fichina Netto - 2024</p>
+    </footer>
+</body>
+</html>
