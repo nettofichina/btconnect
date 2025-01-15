@@ -22,38 +22,36 @@ function normalizarNome(nome) {
 
 // Função para salvar o estado dos dados
 function salvarEstado() {
-    localStorage.setItem('currentState', JSON.stringify({
-        jogadores: jogadores,
-        duplas: duplas,
-        jogos: jogos,
+    const estadoAtual = {
+        jogadores,
+        duplas,
+        jogos,
         nomeTorneio: nomeTorneioInput.value,
-        dataTorneio: dataTorneioInput.value
-    }));
+        dataTorneio: dataTorneioInput.value,
+    };
+    localStorage.setItem('currentState', JSON.stringify(estadoAtual));
     dadosAlterados = true;
 }
-
-// Salvar Estado Completo antes de sair da página
-window.addEventListener('beforeunload', (e) => {
-    if (dadosAlterados) {
-        e.preventDefault();
-        e.returnValue = '';
-    }
-});
 
 // Carregar estado completo do localStorage ao carregar a página
 document.addEventListener('DOMContentLoaded', () => {
     const savedState = localStorage.getItem('currentState');
     if (savedState) {
-        const { jogadores: savedJogadores, duplas: savedDuplas, jogos: savedJogos, nomeTorneio, dataTorneio } = JSON.parse(savedState);
-        jogadores = savedJogadores;
-        duplas = savedDuplas;
-        jogos = savedJogos;
-        nomeTorneioInput.value = nomeTorneio || '';  
-        dataTorneioInput.value = dataTorneio || '';  
+        try {
+            const { jogadores: savedJogadores, duplas: savedDuplas, jogos: savedJogos, nomeTorneio, dataTorneio } = JSON.parse(savedState);
+            jogadores = savedJogadores || [];
+            duplas = savedDuplas || [];
+            jogos = savedJogos || [];
+            nomeTorneioInput.value = nomeTorneio || '';
+            dataTorneioInput.value = dataTorneio || '';
 
-        atualizarListaJogadores();
-        if (duplas.length) {
-            gerarChaves();
+            atualizarListaJogadores();
+            if (duplas.length > 0) {
+                gerarChaves();
+            }
+        } catch (error) {
+            console.error("Erro ao restaurar estado:", error);
+            localStorage.removeItem('currentState'); // Limpa dados inválidos
         }
     }
 });
@@ -100,8 +98,6 @@ function atualizarListaJogadores() {
     jogadores.forEach(jogador => {
         const li = document.createElement('li');
         li.textContent = jogador;
-        li.setAttribute('aria-label', `Jogador: ${jogador}`);
-        li.setAttribute('role', 'listitem');
         li.addEventListener('dblclick', () => removerJogador(jogador, li));
         listaJogadores.appendChild(li);
     });
@@ -155,6 +151,70 @@ function submeterJogo(index, btn, input) {
     }
 }
 
+function criarElementoPlacar(jogo, index) {
+    const placarContainer = document.createElement('div');
+    placarContainer.className = 'placar-container';
+
+    const inputPlacar = document.createElement('input');
+    inputPlacar.type = 'tel';
+    inputPlacar.placeholder = 'Placar (ex: 6-1)';
+    inputPlacar.dataset.index = index;
+    inputPlacar.value = jogo.placar;
+    inputPlacar.disabled = jogo.submetido;
+    inputPlacar.addEventListener('change', (e) => {
+        const placar = e.target.value;
+        if (/^\d+-\d+$/.test(placar)) {
+            jogos[e.target.dataset.index].placar = placar;
+            salvarEstado();
+        } else {
+            alert('Formato de placar inválido. Use "X-Y", por exemplo, "6-1".');
+            e.target.value = '';
+        }
+    });
+
+    const submeterBtn = document.createElement('button');
+    submeterBtn.textContent = 'Submeter';
+    submeterBtn.className = 'submeter-jogo';
+    submeterBtn.style.display = jogo.submetido ? 'none' : 'inline';
+    submeterBtn.addEventListener('click', () => {
+        submeterJogo(index, submeterBtn, inputPlacar);
+    });
+
+    const editarBtn = document.createElement('button');
+    editarBtn.textContent = 'Editar';
+    editarBtn.className = 'editar-placar';
+    editarBtn.style.display = jogo.submetido ? 'inline' : 'none';
+    editarBtn.addEventListener('click', () => {
+        inputPlacar.disabled = false;
+        jogo.submetido = false;
+        submeterBtn.style.display = 'inline';
+        editarBtn.style.display = 'none';
+        salvarEstado();
+    });
+
+    placarContainer.appendChild(inputPlacar);
+    placarContainer.appendChild(submeterBtn);
+    placarContainer.appendChild(editarBtn);
+
+    return placarContainer;
+}
+
+function criarElementoJogo(jogo, index) {
+    const jogoDiv = document.createElement('div');
+    jogoDiv.className = 'jogo';
+    jogoDiv.setAttribute('aria-label', `${jogo.dupla1.join(' e ')} vs ${jogo.dupla2.join(' e ')}`);
+
+    const jogoInfo = document.createElement('span');
+    jogoInfo.textContent = `${jogo.dupla1.join(' e ')} vs ${jogo.dupla2.join(' e ')}`;
+
+    const placarContainer = criarElementoPlacar(jogo, index);
+
+    jogoDiv.appendChild(jogoInfo);
+    jogoDiv.appendChild(placarContainer);
+
+    return jogoDiv;
+}
+
 function gerarChaves() {
     chavesDiv.innerHTML = '';
     jogos = [];
@@ -167,65 +227,13 @@ function gerarChaves() {
     }
 
     jogos.forEach((jogo, index) => {
-        const jogoDiv = document.createElement('div');
-        jogoDiv.className = 'jogo';
-        jogoDiv.setAttribute('aria-label', `${jogo.dupla1.join(' e ')} vs ${jogo.dupla2.join(' e ')}`);
-
-        const jogoInfo = document.createElement('span');
-        jogoInfo.textContent = `${jogo.dupla1.join(' e ')} vs ${jogo.dupla2.join(' e ')}`;
-
-        // Adicionar um contêiner para colocar o input e botão lado a lado
-        const placarContainer = document.createElement('div');
-        placarContainer.className = 'placar-container';
-
-        const inputPlacar = document.createElement('input');
-        inputPlacar.type = 'tel';
-        inputPlacar.placeholder = 'Placar (ex: 6-1)';
-        inputPlacar.dataset.index = index;
-        inputPlacar.value = jogo.placar;
-        inputPlacar.disabled = jogo.submetido;
-        inputPlacar.addEventListener('change', (e) => {
-            const placar = e.target.value;
-            if (/^\d+-\d+$/.test(placar)) {
-                jogos[e.target.dataset.index].placar = placar;
-                salvarEstado(); // Salvar estado ao mudar placar
-            } else {
-                alert('Formato de placar inválido. Use "X-Y", por exemplo, "6-1".');
-                e.target.value = '';
-            }
-        });
-
-        const submeterBtn = document.createElement('button');
-        submeterBtn.textContent = 'Submeter';
-        submeterBtn.className = 'submeter-jogo';
-        submeterBtn.style.display = jogo.submetido ? 'none' : 'inline';
-        submeterBtn.addEventListener('click', () => {
-            submeterJogo(index, submeterBtn, inputPlacar);
-        });
-
-        const editarBtn = document.createElement('button');
-        editarBtn.textContent = 'Editar';
-        editarBtn.className = 'editar-placar';
-        editarBtn.style.display = jogo.submetido ? 'inline' : 'none';
-        editarBtn.addEventListener('click', () => {
-            inputPlacar.disabled = false;
-            jogo.submetido = false;
-            submeterBtn.style.display = 'inline';
-            editarBtn.style.display = 'none';
-            salvarEstado(); // Salvar estado ao editar placar
-        });
-
-        placarContainer.appendChild(inputPlacar);
-        placarContainer.appendChild(submeterBtn);
-        placarContainer.appendChild(editarBtn);
-
-        jogoDiv.appendChild(jogoInfo);
-        jogoDiv.appendChild(placarContainer);
+        const jogoDiv = criarElementoJogo(jogo, index);
         fragment.appendChild(jogoDiv);
     });
 
     chavesDiv.appendChild(fragment);
 }
+
 
 // Salvar campeonato
 salvarCampeonatoBtn.addEventListener('click', () => {
