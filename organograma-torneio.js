@@ -592,3 +592,18 @@ function limparCampos() {
         document.getElementById('organogramaSection').style.display = 'none';
     }
 }
+
+// Ao sair da página
+window.addEventListener('beforeunload', function(e) {
+    // Salva o estado atual da página (exemplo: scroll position)
+    sessionStorage.setItem('scrollPosition', window.scrollY);
+});
+
+// Ao carregar a página
+window.addEventListener('load', function() {
+    // Recupera o estado salvo
+    var scrollPosition = sessionStorage.getItem('scrollPosition');
+    if (scrollPosition) {
+        window.scrollTo(0, parseInt(scrollPosition));
+    }
+});

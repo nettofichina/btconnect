@@ -41,6 +41,7 @@ body {
     padding-top: 50px;
 }
 
+
 /* Layout */
 header {
     position: fixed;
@@ -724,7 +725,7 @@ details.current-phase summary {
 
 .score-container {
     display: flex;
-    align-items: center;
+    align-items: center; 
 }
 
 .score-container input,
