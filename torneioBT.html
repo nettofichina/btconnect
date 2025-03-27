@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Torneio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .form-add-dupla, .form-select-torneio {
+            margin-bottom: 20px;
+        }
+        .duplas-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .duplas-list li {
+            margin-bottom: 5px;
+        }
+        .bye {
+            color: gray;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>Gerenciamento de Torneio</h1>
+
+    <div class="form-select-torneio">
+        <label for="numDuplas">Número de Duplas:</label>
+        <input type="number" id="numDuplas" name="numDuplas" min="3" value="8" required>
+        
+        <label for="numGrupos">Número de Grupos:</label>
+        <input type="number" id="numGrupos" name="numGrupos" min="1" value="2" required>
+    
+        <button id="comecarTorneio">Começar Torneio</button>
+    </div>
+
+    <div class="form-add-dupla">
+        <label for="jogador1">Jogador 1:</label>
+        <input type="text" id="jogador1" name="jogador1" required>
+        
+        <label for="jogador2">Jogador 2:</label>
+        <input type="text" id="jogador2" name="jogador2" required>
+        
+        <button id="adicionarDupla">Adicionar Dupla</button>
+        <button id="adicionarDuplasTeste">Adicionar 8 Duplas (Teste)</button>
+    </div>
+
+    <h2>Duplas Adicionadas</h2>
+    <ul id="duplasList" class="duplas-list">
+    </ul>
+
+    <h2>Chaves dos Grupos</h2>
+    <div id="gruposChaves">
+    </div>
+
+    <h2>Fase Eliminatória</h2>
+    <div id="faseEliminatoria">
+    </div>
+
+    <script src="torneioBT.js"></script>
+</body>
+</html>

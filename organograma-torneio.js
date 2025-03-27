@@ -1,5 +1,5 @@
 let duplas = [];
-const minDuplas = 8;
+const minDuplas = 2; // Reduzido para testes com menos duplas
 let jogos = [];
 let duplasClassificadas = [];
 let jogosEliminatoria = [];
@@ -8,38 +8,32 @@ let terceiroLugar = [];
 let resultadosFinais = {};
 let duplasEstatisticas = {};
 
-
-function calcularPontos(placar1, placar2) {
-    const diferenca = Math.abs(placar1 - placar2);
-    return diferenca > 0 ? diferenca : 1; // No caso de empate, atribuímos 1 ponto por time
-}
-
-function exibirResumo(fase, div) {
-    let resumoHTML = `<h4>Resultado da ${fase}</h4>`;
-    // Ordenar as duplas por pontos, do maior para o menor
-    const sortedDuplas = Object.entries(duplasEstatisticas).sort((a, b) => b[1].pontos - a[1].pontos);
-    
-    for (let [dupla, stats] of sortedDuplas) {
-        resumoHTML += `<p>${dupla.split(',').join(' e ')} - ${stats.jogos} Jogos | ${stats.pontos} Pontos</p>`;
-    }
-    div.innerHTML += resumoHTML;
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('adicionarDupla').addEventListener('click', adicionarDupla);
+    document.getElementById('limparCampos').addEventListener('click', () => {
+        if (confirm('Tem certeza que deseja limpar todos os campos?')) {
+            duplas = [];
+            jogos = [];
+            duplasClassificadas = [];
+            jogosEliminatoria = [];
+            finalistas = [];
+            terceiroLugar = [];
+            resultadosFinais = {};
+            duplasEstatisticas = {};
+            updateListaDuplas();
+            document.getElementById('sortearChaves').disabled = true;
+            document.getElementById('organogramaSection').style.display = 'none';
+        }
+    });
+    document.getElementById('adicionar8Duplas').addEventListener('click', adicionar8Duplas);
     document.getElementById('sortearChaves').addEventListener('click', sortearChaves);
     document.getElementById('encerrarEtapa').addEventListener('click', encerrarEtapa);
     document.getElementById('encerrarEtapaEliminatoria').addEventListener('click', encerrarEtapaEliminatoria);
+    document.getElementById('encerrarSemifinal').addEventListener('click', encerrarSemifinal);
     document.getElementById('encerrarCampeonato').addEventListener('click', encerrarCampeonato);
-    document.getElementById('adicionar8Duplas').addEventListener('click', adicionar8Duplas);
-    document.getElementById('salvarCampeonato').addEventListener('click', salvarCampeonato);
-    document.getElementById('limparCampos').addEventListener('click', limparCampos);
-    document.getElementById('salvarCampeonato').addEventListener('click', salvarCampeonato);
-    document.getElementById('voltarParaHome').addEventListener('click', function() {
-        window.location.href = 'index.html';
-    });
 });
 
+// Função Adicionar Duplas
 function adicionarDupla() {
     const jogador1 = document.getElementById('jogador1').value.trim().toUpperCase();
     const jogador2 = document.getElementById('jogador2').value.trim().toUpperCase();
@@ -55,7 +49,6 @@ function adicionarDupla() {
         document.getElementById('jogador1').value = '';
         document.getElementById('jogador2').value = '';
         document.getElementById('sortearChaves').disabled = duplas.length < minDuplas;
-        salvarEstado(); // Salva o estado após adicionar uma nova dupla
     } else {
         alert('Por favor, preencha ambos os campos.');
     }
@@ -72,348 +65,431 @@ function updateListaDuplas() {
     });
 }
 
+// Função Remover Duplas
 function removerDupla(index, element) {
     duplas.splice(index, 1);
     element.remove();
     updateListaDuplas();
     document.getElementById('sortearChaves').disabled = duplas.length < minDuplas;
-    salvarEstado(); // Salva o estado após remover uma dupla
 }
 
-// Função para adicionar 8 duplas temporariamente (IREMOS APAGAR ESSA FUNÇÃO POSTERIORMENTE)
+// Função Temporária
 function adicionar8Duplas() {
     for (let i = 1; i <= 8; i++) {
         duplas.push([`JOGADOR${i * 2 - 1}`, `JOGADOR${i * 2}`]);
     }
     updateListaDuplas();
-    document.getElementById('sortearChaves').disabled = false; // Habilita o botão "Começar Torneio"
-    salvarEstado(); // Salva o estado após adicionar as duplas de teste
+    document.getElementById('sortearChaves').disabled = false;
 }
 
 function sortearChaves() {
-    if (duplas.length < minDuplas) {
-        alert('É necessário no mínimo 8 duplas para começar o torneio.');
+    if (duplas.length < 3) {
+        alert('É necessário pelo menos 3 duplas para começar o torneio.');
         return;
     }
 
-    const grupos = [];
-    const duplasEmbaralhadas = [...duplas].sort(() => Math.random() - 0.5);
-
-    for (let i = 0; i < duplasEmbaralhadas.length; i += 4) {
-        grupos.push(duplasEmbaralhadas.slice(i, i + 4));
-    }
-
-    const organogramaSection = document.getElementById('organogramaSection');
-    organogramaSection.style.display = 'block';
-
-    const faseGruposDiv = document.getElementById('faseGrupos');
-    faseGruposDiv.innerHTML = '';
+    let grupos = dividirGrupos([...duplas].sort(() => Math.random() - 0.5));
     jogos = [];
     duplasClassificadas = [];
-    jogosEliminatoria = []; // Resetando jogos da fase eliminatória
+
+    document.getElementById('organogramaSection').style.display = 'block';
+    document.getElementById('faseGrupos').innerHTML = '';
+    document.getElementById('faseAtual').style.display = 'block';
+    document.getElementById('faseAtual').textContent = 'Fase de Grupos';
 
     grupos.forEach((grupo, grupoIndex) => {
         const grupoDiv = document.createElement('div');
         grupoDiv.innerHTML = `<h3>Grupo ${grupoIndex + 1}</h3>`;
-        grupoDiv.appendChild(criarJogosParaGrupo(grupo, grupoIndex));
-        faseGruposDiv.appendChild(grupoDiv);
+        
+        let jogosGrupo = criarJogosParaGrupo(grupo, grupoIndex);
+        jogos.push(...jogosGrupo);
+        renderizarJogosParaFase('grupo', jogosGrupo, grupoDiv);
+        document.getElementById('faseGrupos').appendChild(grupoDiv);
     });
 
-    // Mostrar "Fase de Grupos"
-    document.getElementById('faseAtual').style.display = 'block';
-    document.getElementById('faseAtual').textContent = 'Fase de Grupos';
-
-    document.getElementById('encerrarEtapa').style.display = 'block'; // Mostra o botão "Encerrar Etapa"
-    document.getElementById('faseEliminatoria').innerHTML = ''; // Mantém a div vazia até que seja necessário
-    document.getElementById('encerrarEtapaEliminatoria').style.display = 'none'; // Oculta o botão
-    document.getElementById('encerrarCampeonato').style.display = 'none'; // Oculta o botão
-    salvarEstado(); // Salva o estado após sortear as chaves
+    document.getElementById('encerrarEtapa').style.display = 'block';
+    document.getElementById('encerrarEtapaEliminatoria').style.display = 'none';
 }
 
-function criarJogosParaGrupo(grupo, grupoIndex) {
-    let jogosGrupo = document.createElement('div');
-    let grupoEmbaralhado = [...grupo].sort(() => Math.random() - 0.5);
-    let jogosArray = [];
+function dividirGrupos(duplas) {
+    if (duplas.length < 3) {
+        alert("É necessário pelo menos 3 duplas para formar grupos.");
+        return [];
+    }
+    
+    let numGrupos;
+    if (duplas.length <= 5) numGrupos = 1;
+    else if (duplas.length <= 8) numGrupos = 2;
+    else if (duplas.length <= 11) numGrupos = 3;
+    else if (duplas.length <= 14) numGrupos = 4;
+    else if (duplas.length <= 17) numGrupos = 5;
+    else numGrupos = 6; // Para 18 a 20 duplas
 
-    for (let i = 0; i < grupoEmbaralhado.length; i += 2) {
-        jogosArray.push({ dupla1: grupoEmbaralhado[i], dupla2: grupoEmbaralhado[i + 1], placar: '', submetido: false, grupoIndex, jogoIndex: i / 2 });
+    let grupos = [];
+    let duplasPorGrupo = Math.floor(duplas.length / numGrupos);
+    let resto = duplas.length % numGrupos;
+
+    for (let i = 0; i < numGrupos; i++) {
+        let grupoSize = duplasPorGrupo + (i < resto ? 1 : 0);
+        grupos.push(duplas.splice(0, grupoSize));
     }
 
-    jogosArray.forEach(jogo => {
-        const jogoDiv = document.createElement('p');
-        jogoDiv.innerHTML = `
-            Jogo ${jogo.jogoIndex + 1}: <span class="jogadores">${jogo.dupla1.join(' e ')}</span> vs <span class="jogadores">${jogo.dupla2.join(' e ')}</span>
-            <div class="score-container">
-                <input type="tel" id="placar_${jogo.grupoIndex}_${jogo.jogoIndex}" placeholder="Placar (ex: 6-1)">
-                <button onclick="submeterPlacar(${jogo.grupoIndex}, ${jogo.jogoIndex})">Submeter</button>
-            </div>
-        `;
-        jogosGrupo.appendChild(jogoDiv);
-        jogos.push(jogo);
-    });
+    // Corrigir para garantir distribuição igual para 6 a 8 duplas
+    if (duplas.length === 8) {
+        if (grupos[0].length !== grupos[1].length) {
+            let ajuste = grupos[0].length - grupos[1].length;
+            if (ajuste > 0) {
+                grupos[1].push(...grupos[0].splice(duplasPorGrupo, ajuste));
+            } else {
+                grupos[0].push(...grupos[1].splice(duplasPorGrupo, -ajuste));
+            }
+        }
+    }
 
+    return grupos;
+}
+
+// Função para criar jogos para um grupo específico
+function criarJogosParaGrupo(grupo, grupoIndex) {
+    let jogosGrupo = [];
+    for (let i = 0; i < grupo.length; i++) {
+        for (let j = i + 1; j < grupo.length; j++) {
+            jogosGrupo.push({
+                dupla1: grupo[i],
+                dupla2: grupo[j],
+                placar: '',
+                submetido: false,
+                grupoIndex,
+                jogoIndex: jogos.length + jogosGrupo.length // Garantir unicidade
+            });
+        }
+    }
     return jogosGrupo;
 }
 
-function submeterPlacar(grupoIndex, jogoIndex) {
-    const placarInput = document.getElementById(`placar_${grupoIndex}_${jogoIndex}`);
-    const placar = placarInput.value;
-    const jogo = jogos.find(j => j.grupoIndex === grupoIndex && j.jogoIndex === jogoIndex);
+// Função para renderizar jogos de uma fase específica
+function renderizarJogosParaFase(fase, jogos, containerDiv) {
+    let jogosDiv = document.createElement('div');
+    jogos.forEach(jogo => {
+        let jogoElement = document.createElement('p');
+        jogoElement.innerHTML = `
+            Jogo ${jogo.jogoIndex + 1}: <span class="jogadores">${jogo.dupla1.join(' e ')}</span> vs <span class="jogadores">${jogo.dupla2.join(' e ')}</span>
+            <div class="score-container">
+                <input type="tel" id="placar_${fase}_${jogo.jogoIndex}" placeholder="Placar (ex: 6-1)">
+                <button onclick="submeterPlacarGenerico('${fase}', ${jogo.jogoIndex})">Submeter</button>
+            </div>
+        `;
+        jogosDiv.appendChild(jogoElement);
+    });
+    containerDiv.appendChild(jogosDiv);
+}
 
+// Função para submeter o placar (não incluída na pergunta, mas necessária para o contexto)
+function submeterPlacarGenerico(fase, jogoIndex) {
+    // Implementação desta função deve ser adicionada ou substituída pela existente
+    console.log(`Submeter placar para o jogo ${jogoIndex} da fase ${fase}`);
+}
+
+function submeterPlacarGenerico(fase, jogoIndex = undefined) {
+    let placarInputId = fase === 'final' ? 'placar_final' : (fase === 'terceiro' ? 'placar_terceiro' : `placar_${fase}_${jogoIndex}`);
+    const placarInput = document.getElementById(placarInputId);
+    if (!placarInput) {
+        console.error(`Elemento "${placarInputId}" não encontrado.`);
+        return;
+    }
+
+    const placar = placarInput.value;
     if (placar.match(/^\d+-\d+$/)) {
-        jogo.placar = placar;
-        if (!jogo.submetido) {
-            jogo.submetido = true;
-            placarInput.disabled = true; // Desabilita o input para evitar novas edições
-            const button = placarInput.nextElementSibling;
-            button.textContent = 'Editar'; // Altera o texto do botão para 'Editar'
-            button.onclick = () => editarPlacar(grupoIndex, jogoIndex); // Define a função para editar
+        if (fase === 'final' || fase === 'terceiro') {
+            resultadosFinais[fase] = placar;
+        } else {
+            let jogo = fase === 'grupo' ? jogos.find(j => j.jogoIndex === jogoIndex) : jogosEliminatoria.find(j => j.jogoIndex === jogoIndex);
+            if (jogo) {
+                jogo.placar = placar;
+                jogo.submetido = true;
+            } else {
+                console.error('Jogo não encontrado para o índice:', jogoIndex);
+                return;
+            }
         }
-        salvarEstado(); // Salva o estado após submeter um placar
+        placarInput.disabled = true;
+        placarInput.nextElementSibling.textContent = 'Editar';
+        placarInput.nextElementSibling.onclick = () => editarPlacarGenerico(fase, jogoIndex);
     } else {
         alert('Formato de placar inválido. Use "X-Y", por exemplo, "6-1".');
     }
 }
 
-function editarPlacar(grupoIndex, jogoIndex) {
-    const placarInput = document.getElementById(`placar_${grupoIndex}_${jogoIndex}`);
-    const jogo = jogos.find(j => j.grupoIndex === grupoIndex && j.jogoIndex === jogoIndex);
-    
-    if (jogo.submetido) {
-        jogo.submetido = false; // Reverte o status para não submetido
-        placarInput.disabled = false; // Reabilita o input para edição
-        placarInput.value = ''; // Limpa o valor para evitar confusão
-        const button = placarInput.nextElementSibling;
-        button.textContent = 'Submeter'; // Altera o texto de volta para 'Submeter'
-        button.onclick = () => submeterPlacar(grupoIndex, jogoIndex); // Redefine a função para submeter
-        salvarEstado(); // Salva o estado após permitir edição
+function editarPlacarGenerico(fase, jogoIndex = undefined) {
+    let placarInputId = fase === 'final' ? 'placar_final' : (fase === 'terceiro' ? 'placar_terceiro' : `placar_${fase}_${jogoIndex}`);
+    const placarInput = document.getElementById(placarInputId);
+    if (!placarInput) {
+        console.error(`Elemento "${placarInputId}" não encontrado.`);
+        return;
     }
+
+    if (fase === 'final' || fase === 'terceiro') {
+        delete resultadosFinais[fase];
+    } else {
+        const jogo = jogosEliminatoria.find(j => j.jogoIndex === jogoIndex) || jogos.find(j => j.jogoIndex === jogoIndex);
+        if (jogo && jogo.submetido) {
+            jogo.submetido = false;
+        } else {
+            console.error('Jogo não encontrado ou não submetido para o índice:', jogoIndex);
+            return;
+        }
+    }
+    placarInput.disabled = false;
+    placarInput.value = '';
+    placarInput.nextElementSibling.textContent = 'Submeter';
+    placarInput.nextElementSibling.onclick = () => submeterPlacarGenerico(fase, jogoIndex);
+}
+
+function classificarDuplasPorDesempate(grupo) {
+    return grupo.sort((a, b) => {
+        let statsA = duplasEstatisticas[a.join(',')] || { pontos: 0, setsVencidos: 0, setsPerdidos: 0 };
+        let statsB = duplasEstatisticas[b.join(',')] || { pontos: 0, setsVencidos: 0, setsPerdidos: 0 };
+        
+        if (statsB.pontos !== statsA.pontos) return statsB.pontos - statsA.pontos;
+        let saldoA = statsA.setsVencidos - statsA.setsPerdidos;
+        let saldoB = statsB.setsVencidos - statsB.setsPerdidos;
+        if (saldoA !== saldoB) return saldoB - saldoA;
+        
+        // Adicione lógica para confronto direto ou sorteio aqui
+        return 0;
+    });
 }
 
 function encerrarEtapa() {
+    console.log("Iniciando encerrarEtapa");
     if (jogos.some(jogo => !jogo.submetido)) {
         alert('Todos os jogos devem ser submetidos antes de encerrar a etapa.');
         return;
     }
 
-    duplasClassificadas = jogos.map(jogo => {
-        const [set1, set2] = jogo.placar.split('-').map(Number);
-        return set1 > set2 ? jogo.dupla1 : jogo.dupla2;
-    });
-
-    // Fecha a fase de grupos
-    document.getElementById('faseGruposDetails').open = false;
-
-    // Abre a fase eliminatória
-    const faseEliminatoriaDetails = document.getElementById('faseEliminatoriaDetails');
-    faseEliminatoriaDetails.style.display = 'block'; // Certifica-se de que está visível
-    faseEliminatoriaDetails.open = true;
-
-    const faseEliminatoriaDiv = document.getElementById('faseEliminatoria');
-    faseEliminatoriaDiv.innerHTML = '<h3>Fase Eliminatória</h3>';
-    
-    // Cria confrontos da fase eliminatória com inputs para placar
-    for (let i = 0; i < duplasClassificadas.length; i += 2) {
-        const jogoDiv = document.createElement('p');
-        jogoDiv.innerHTML = `
-            Jogo ${i/2 + 1}: <span class="jogadores">${duplasClassificadas[i].join(' e ')}</span> vs <span class="jogadores">${duplasClassificadas[i + 1].join(' e ')}</span>
-            <div class="score-container">
-                <input type="tel" id="placar_eliminatoria_${i/2}" placeholder="Placar (ex: 6-1)">
-                <button onclick="submeterPlacarEliminatoria(${i/2})">Submeter</button>
-            </div>
-        `;
-        faseEliminatoriaDiv.appendChild(jogoDiv);
-        jogosEliminatoria.push({ dupla1: duplasClassificadas[i], dupla2: duplasClassificadas[i + 1], placar: '', submetido: false, jogoIndex: i/2 });
-    }
-
-    // Manipulação dos botões
-    document.getElementById('encerrarEtapa').style.display = 'none';
-    document.getElementById('encerrarEtapaEliminatoria').style.display = 'block';
-
-    // Esconde todos os botões de "Submeter" ou "Editar" na etapa encerrada
-    document.querySelectorAll('#faseGrupos button').forEach(button => {
-        if (button.textContent === 'Submeter' || button.textContent === 'Editar') {
-            button.style.display = 'none';
+    console.log("Atualizando estatísticas:", jogos.length);
+    jogos.forEach(jogo => {
+        if (jogo.submetido) {
+            console.log("Atualizando jogo:", jogo);
+            atualizarEstatisticas(jogo);
         }
     });
 
-    salvarEstado(); // Salva o estado ao encerrar a etapa de grupos
-}
+    console.log("Classificando duplas:", duplasEstatisticas);
+    let classificadosPorGrupo = {};
+    jogos.forEach(jogo => {
+        let dupla1Key = jogo.dupla1.join(',');
+        let dupla2Key = jogo.dupla2.join(',');
+        if (!classificadosPorGrupo[jogo.grupoIndex]) classificadosPorGrupo[jogo.grupoIndex] = [];
+        classificadosPorGrupo[jogo.grupoIndex].push(dupla1Key, dupla2Key);
+    });
 
-function submeterPlacarEliminatoria(jogoIndex) {
-    const placarInput = document.getElementById(`placar_eliminatoria_${jogoIndex}`);
-    const placar = placarInput.value;
-    const jogo = jogosEliminatoria.find(j => j.jogoIndex === jogoIndex);
-
-    if (placar.match(/^\d+-\d+$/)) {
-        jogo.placar = placar;
-        if (!jogo.submetido) {
-            jogo.submetido = true;
-            placarInput.disabled = true; // Desabilita o input para evitar novas edições
-            const button = placarInput.nextElementSibling;
-            button.textContent = 'Editar'; // Altera o texto do botão para 'Editar'
-            button.onclick = () => editarPlacarEliminatoria(jogoIndex); // Define a função para editar
+    let classificados = [];
+    Object.values(classificadosPorGrupo).forEach((grupo, index) => {
+        console.log(`Classificando grupo ${index}:`, grupo);
+        let sorted = classificarDuplasPorDesempate(grupo.map(key => key.split(',')));
+        if (duplas.length <= 5) {
+            classificados = [sorted[0]]; // Apenas o campeão
+        } else {
+            classificados.push(...sorted.slice(0, 2)); // 2 primeiros de cada grupo
         }
-        salvarEstado(); // Salva o estado após submeter um placar
+        console.log("Classificados deste grupo:", sorted.slice(0, 2));
+    });
+
+    console.log("Classificados após fase de grupos:", classificados);
+    if (duplas.length <= 5) {
+        alert(`Campeão: ${classificados[0].join(' e ')}`);
+        encerrarCampeonato(classificados[0]);
     } else {
-        alert('Formato de placar inválido. Use "X-Y", por exemplo, "6-1".');
+        criarFaseEliminatoria(classificados);
     }
+
+    console.log("Atualizando UI após encerrar etapa");
+    const encerrarEtapaBtn = document.getElementById('encerrarEtapa');
+    const encerrarEliminatoriaBtn = document.getElementById('encerrarEtapaEliminatoria');
+    const faseAtual = document.getElementById('faseAtual');
+
+    if (encerrarEtapaBtn) encerrarEtapaBtn.style.display = 'none';
+    if (encerrarEliminatoriaBtn) encerrarEliminatoriaBtn.style.display = 'block';
+    if (faseAtual) {
+        faseAtual.style.display = 'block';
+        faseAtual.textContent = duplas.length <= 8 ? 'Semifinal' : 'Fase Eliminatória';
+    }
+    console.log("EncerrarEtapa concluída");
 }
 
-function editarPlacarEliminatoria(jogoIndex) {
-    const placarInput = document.getElementById(`placar_eliminatoria_${jogoIndex}`);
-    const jogo = jogosEliminatoria.find(j => j.jogoIndex === jogoIndex);
-    
-    if (jogo.submetido) {
-        jogo.submetido = false; // Reverte o status para não submetido
-        placarInput.disabled = false; // Reabilita o input para edição
-        placarInput.value = ''; // Limpa o valor para evitar confusão
-        const button = placarInput.nextElementSibling;
-        button.textContent = 'Submeter'; // Altera o texto de volta para 'Submeter'
-        button.onclick = () => submeterPlacarEliminatoria(jogoIndex); // Redefine a função para submeter
-        salvarEstado(); // Salva o estado após permitir edição
+function criarFaseEliminatoria(classificados) {
+    let fase = duplas.length <= 8 ? 'semifinal' : 'quartas';
+    jogosEliminatoria = [];
+    let nextClassificados = classificados.map(d => d.join(','));
+
+    while (nextClassificados.length > 1) {
+        let proximaFase = [];
+        for (let i = 0; i < nextClassificados.length; i += 2) {
+            jogosEliminatoria.push({
+                dupla1: nextClassificados[i].split(','),
+                dupla2: nextClassificados[i + 1] ? nextClassificados[i + 1].split(',') : ['Bye', ''],
+                placar: '',
+                submetido: false,
+                jogoIndex: jogosEliminatoria.length,
+                fase: fase + 'Details'
+            });
+            if (nextClassificados[i + 1]) {
+                proximaFase.push(nextClassificados[i], nextClassificados[i + 1]);
+            } else {
+                proximaFase.push(nextClassificados[i]);
+            }
+        }
+        nextClassificados = proximaFase;
+        fase = fase === 'quartas' ? 'semifinal' : 'final';
+    }
+
+    console.log("Jogos eliminatórios criados:", jogosEliminatoria);
+
+    ['quartasDetails', 'semifinalDetails', 'finalDetails'].forEach(detailsId => {
+        let details = document.getElementById(detailsId);
+        if (details) {
+            details.style.display = 'block';
+            details.open = true;
+            let faseDiv = document.getElementById(detailsId.replace('Details', ''));
+            if (faseDiv) {
+                faseDiv.innerHTML = `<h3>${detailsId.replace('Details', '')}</h3>`;
+                renderizarJogosParaFase(detailsId.replace('Details', ''), 
+                    jogosEliminatoria.filter(j => j.fase === detailsId), faseDiv);
+            }
+        }
+    });
+}
+
+function criarSemifinal(classificados) {
+    jogosEliminatoria = [];
+    for (let i = 0; i < classificados.length; i += 2) {
+        jogosEliminatoria.push({
+            dupla1: classificados[i],
+            dupla2: classificados[i + 1] || ['Bye', ''],
+            placar: '',
+            submetido: false,
+            jogoIndex: jogosEliminatoria.length,
+            fase: 'semifinalDetails'
+        });
+    }
+
+    document.getElementById('semifinalDetails').style.display = 'block';
+    document.getElementById('semifinalDetails').open = true;
+    let semifinalDiv = document.getElementById('semifinal');
+    if (semifinalDiv) {
+        semifinalDiv.innerHTML = '<h3>Semifinal</h3>';
+        renderizarJogosParaFase('semifinal', jogosEliminatoria, semifinalDiv);
     }
 }
 
 function encerrarEtapaEliminatoria() {
     if (jogosEliminatoria.some(jogo => !jogo.submetido)) {
-        alert('Todos os jogos da fase eliminatória devem ser submetidos antes de encerrar a etapa.');
+        alert('Todos os jogos da etapa atual devem ser submetidos antes de encerrar.');
         return;
     }
 
-    // Determina os vencedores da fase eliminatória
-    finalistas = jogosEliminatoria.map(jogo => {
-        const [set1, set2] = jogo.placar.split('-').map(Number);
-        return set1 > set2 ? jogo.dupla1 : jogo.dupla2;
-    });
+    let currentPhase = document.getElementById('faseAtual').textContent.trim().toLowerCase();
+    if (currentPhase === 'semifinal') {
+        finalistas = jogosEliminatoria.map(jogo => {
+            const [set1, set2] = jogo.placar.split('-').map(Number);
+            return set1 > set2 ? jogo.dupla1 : jogo.dupla2;
+        });
 
-    terceiroLugar = jogosEliminatoria.map(jogo => {
-        const [set1, set2] = jogo.placar.split('-').map(Number);
-        return set1 < set2 ? jogo.dupla1 : jogo.dupla2;
-    });
+        let disputaTerceiro = jogosEliminatoria.map(jogo => {
+            const [set1, set2] = jogo.placar.split('-').map(Number);
+            return set1 < set2 ? jogo.dupla1 : jogo.dupla2;
+        });
 
-    // Fecha a fase eliminatória
-    document.getElementById('faseEliminatoriaDetails').open = false;
+        // Fechar a fase das semifinais
+        document.getElementById('semifinalDetails').open = false;
 
-    // Abre a decisão
-    const decisaoDetails = document.getElementById('decisaoDetails');
-    decisaoDetails.style.display = 'block';
-    decisaoDetails.open = true;
-
-    // Configura os elementos para a final e a disputa pelo terceiro lugar
-    const finalDiv = document.getElementById('final');
-    finalDiv.innerHTML = `
-        <h3>Final</h3>
-        <p>Final: <span class="jogadores">${finalistas[0].join(' e ')}</span> vs <span class="jogadores">${finalistas[1].join(' e ')}</span>
-        <div class="score-container">
-            <input type="tel" id="placar_final" placeholder="Placar (ex: 6-1)">
-            <button onclick="submeterPlacarFinal()">Submeter</button>
-        </div></p>
-    `;
-
-    const terceiroLugarDiv = document.getElementById('terceiroLugar');
-    terceiroLugarDiv.innerHTML = `
-        <h3>Disputa pelo Terceiro Lugar</h3>
-        <p>Disputa pelo Terceiro Lugar: <span class="jogadores">${terceiroLugar[0].join(' e ')}</span> vs <span class="jogadores">${terceiroLugar[1].join(' e ')}</span>
-        <div class="score-container">
-            <input type="tel" id="placar_terceiro" placeholder="Placar (ex: 6-1)">
-            <button onclick="submeterPlacarTerceiro()">Submeter</button>
-        </div></p>
-    `;
-
-    // Esconde os botões "Submeter" ou "Editar" na fase eliminatória
-    document.querySelectorAll('#faseEliminatoria button').forEach(button => {
-        if (button.textContent === 'Submeter' || button.textContent === 'Editar') {
-            button.style.display = 'none';
+        // Criar e abrir a fase da disputa pelo terceiro lugar
+        const terceiroDetails = document.getElementById('terceiroLugarDetails');
+        if (!terceiroDetails) {
+            const newDetails = document.createElement('details');
+            newDetails.id = 'terceiroLugarDetails';
+            newDetails.innerHTML = `<summary>Disputa pelo 3º Lugar</summary><div id="terceiroLugar"></div>`;
+            document.getElementById('organogramaSection').insertBefore(newDetails, document.getElementById('finalDetails'));
         }
-    });
+        document.getElementById('terceiroLugarDetails').style.display = 'block';
+        document.getElementById('terceiroLugarDetails').open = true;
 
-    // Manipulação dos botões
-    document.getElementById('encerrarEtapaEliminatoria').style.display = 'none';
-    document.getElementById('encerrarCampeonato').style.display = 'block';
+        document.getElementById('terceiroLugar').innerHTML = `
+            <h3>Disputa pelo 3º Lugar</h3>
+            <p>Disputa pelo 3º Lugar: <span class="jogadores">${disputaTerceiro[0].join(' e ')}</span> vs <span class="jogadores">${disputaTerceiro[1].join(' e ')}</span>
+            <div class="score-container">
+                <input type="tel" id="placar_terceiro" placeholder="Placar (ex: 6-1)">
+                <button onclick="submeterPlacarGenerico('terceiro', 0)">Submeter</button>
+            </div></p>
+        `;
 
-    salvarEstado();
-}
+        document.getElementById('finalDetails').style.display = 'block';
+        document.getElementById('finalDetails').open = true;
+        document.getElementById('final').innerHTML = `
+            <h3>Final</h3>
+            <p>Final: <span class="jogadores">${finalistas[0].join(' e ')}</span> vs <span class="jogadores">${finalistas[1].join(' e ')}</span>
+            <div class="score-container">
+                <input type="tel" id="placar_final" placeholder="Placar (ex: 6-1)">
+                <button onclick="submeterPlacarGenerico('final', 0)">Submeter</button>
+            </div></p>
+        `;
 
-function submeterPlacarFinal() {
-    const placarInput = document.getElementById('placar_final');
-    const placar = placarInput.value;
-    if (placar.match(/^\d+-\d+$/)) {
-        placarInput.disabled = true;
-        const button = placarInput.nextElementSibling;
-        button.textContent = 'Editar';
-        button.onclick = () => {
-            placarInput.disabled = false;
-            placarInput.value = '';
-            button.textContent = 'Submeter';
-            button.onclick = submeterPlacarFinal;
-        };
-        resultadosFinais.final = placar;
-        atualizarEstatisticas({ placar: placar, dupla1: finalistas[0], dupla2: finalistas[1] }); // Atualizar estatísticas imediatamente
-        salvarEstado(); // Salva o estado após submeter o placar final
-    } else {
-        alert('Formato de placar inválido. Use "X-Y", por exemplo, "6-1".');
-    }
-}
-
-function submeterPlacarTerceiro() {
-    const placarInput = document.getElementById('placar_terceiro');
-    const placar = placarInput.value;
-    if (placar.match(/^\d+-\d+$/)) {
-        placarInput.disabled = true;
-        const button = placarInput.nextElementSibling;
-        button.textContent = 'Editar';
-        button.onclick = () => {
-            placarInput.disabled = false;
-            placarInput.value = '';
-            button.textContent = 'Submeter';
-            button.onclick = submeterPlacarTerceiro;
-        };
-        resultadosFinais.terceiro = placar;
-        atualizarEstatisticas({ placar: placar, dupla1: terceiroLugar[0], dupla2: terceiroLugar[1] }); // Atualizar estatísticas imediatamente
-        salvarEstado(); // Salva o estado após submeter o placar pela terceira colocação
-    } else {
-        alert('Formato de placar inválido. Use "X-Y", por exemplo, "6-1".');
+        document.getElementById('encerrarEtapaEliminatoria').style.display = 'none';
+        document.getElementById('encerrarCampeonato').style.display = 'block';
+        document.getElementById('faseAtual').textContent = 'Final';
     }
 }
 
 function encerrarCampeonato() {
     if (!resultadosFinais.final || !resultadosFinais.terceiro) {
-        alert('Todos os placares finais devem ser submetidos antes de encerrar o campeonato.');
+        alert('Os placares da final e da disputa pelo terceiro lugar devem ser submetidos antes de encerrar o torneio.');
         return;
     }
 
-    console.log("EncerrarCampeonato chamado", resultadosFinais, finalistas, terceiroLugar);
+    const [finalSet1, finalSet2] = resultadosFinais.final.split('-').map(Number);
+    const vencedorFinal = finalSet1 > finalSet2 ? finalistas[0] : finalistas[1];
+    const perdedorFinal = vencedorFinal === finalistas[0] ? finalistas[1] : finalistas[0];
 
-    // Gerar ranking final sem basear-se em pontos
+    // Atualizar terceiroLugar com as duplas que disputaram o terceiro lugar
+    const terceiroLugarElement = document.querySelector('#terceiroLugar span.jogadores:nth-child(1)');
+    const quartoLugarElement = document.querySelector('#terceiroLugar span.jogadores:nth-child(3)');
+
+    if (terceiroLugarElement && quartoLugarElement) {
+        terceiroLugar = [
+            terceiroLugarElement.textContent.split(' e '),
+            quartoLugarElement.textContent.split(' e ')
+        ];
+    } else {
+        console.error('Elementos para disputa pelo terceiro lugar não encontrados.');
+        // Aqui você pode definir valores padrão ou tratar o erro de outra forma se necessário
+        terceiroLugar = [['Jogador Desconhecido1', 'Jogador Desconhecido2'], ['Jogador Desconhecido3', 'Jogador Desconhecido4']];
+    }
+
+    const [terceiroSet1, terceiroSet2] = resultadosFinais.terceiro.split('-').map(Number);
+    const vencedorTerceiro = terceiroSet1 > terceiroSet2 ? terceiroLugar[0] : terceiroLugar[1];
+    const perdedorTerceiro = vencedorTerceiro === terceiroLugar[0] ? terceiroLugar[1] : terceiroLugar[0];
+
     const ranking = [
-        { dupla: finalistas[0], posicao: 1 },
-        { dupla: finalistas[1], posicao: 2 },
-        { dupla: resultadosFinais.final.split('-')[0] > resultadosFinais.final.split('-')[1] ? terceiroLugar[1] : terceiroLugar[0], posicao: 3 },
-        { dupla: resultadosFinais.final.split('-')[0] > resultadosFinais.final.split('-')[1] ? terceiroLugar[0] : terceiroLugar[1], posicao: 4 }
+        { dupla: vencedorFinal, posicao: 1 },
+        { dupla: perdedorFinal, posicao: 2 },
+        { dupla: vencedorTerceiro, posicao: 3 },
+        { dupla: perdedorTerceiro, posicao: 4 }
     ];
 
     const rankingDiv = document.getElementById('rankingFinal');
     if (rankingDiv) {
         rankingDiv.style.display = 'block';
         rankingDiv.innerHTML = '<h3>Ranking Final</h3>';
-
         ranking.forEach(({ dupla, posicao }) => {
             const rankItem = document.createElement('div');
             rankItem.className = 'nome';
             
-            let medalha = '';
-            let color = 'gray';
-            
-            if (posicao === 1) {
-                medalha = '🥇';
-                color = 'gold';
-            } else if (posicao === 2) {
-                medalha = '🥈';
-                color = 'silver';
-            } else if (posicao === 3) {
-                medalha = '🥉';
-                color = 'brown';
+            let medalha = '', color = 'gray';
+            switch (posicao) {
+                case 1: medalha = '🥇'; color = 'gold'; break;
+                case 2: medalha = '🥈'; color = 'silver'; break;
+                case 3: medalha = '🥉'; color = 'brown'; break;
             }
 
             rankItem.innerHTML = `
@@ -424,186 +500,101 @@ function encerrarCampeonato() {
             rankItem.setAttribute('aria-label', `${dupla.join(' e ')} está na posição ${posicao}.`);
             rankingDiv.appendChild(rankItem);
         });
-    }
 
-    // Ocultar botões "Editar" na decisão
-    document.querySelectorAll('#decisaoDetails button').forEach(button => {
-        if (button.textContent === 'Editar') {
-            button.style.display = 'none';
-        }
-    });
-
-    // Mostrar o botão "Salvar Campeonato"
-    document.getElementById('salvarCampeonato').style.display = 'block';
-    document.getElementById('salvarCampeonato').disabled = false; 
-
-    // Ocultar o botão "Encerrar Campeonato" para evitar múltiplas submissões
-    document.getElementById('encerrarCampeonato').style.display = 'none';
-
-    salvarEstado(); // Salva o estado ao encerrar o campeonato
-}
-
-function salvarEstado() {
-    localStorage.setItem('torneioEstado', JSON.stringify({
-        duplas: duplas,
-        jogos: jogos,
-        jogosEliminatoria: jogosEliminatoria,
-        finalistas: finalistas,
-        terceiroLugar: terceiroLugar,
-        resultadosFinais: resultadosFinais
-    }));
-}
-
-function carregarEstado() {
-    const estadoSalvo = localStorage.getItem('torneioEstado');
-    if (estadoSalvo) {
-        const { duplas: savedDuplas, jogos: savedJogos, jogosEliminatoria: savedJogosEliminatoria, finalistas: savedFinalistas, terceiroLugar: savedTerceiroLugar, resultadosFinais: savedResultadosFinais } = JSON.parse(estadoSalvo);
-        duplas = savedDuplas || [];
-        jogos = savedJogos || [];
-        jogosEliminatoria = savedJogosEliminatoria || [];
-        finalistas = savedFinalistas || [];
-        terceiroLugar = savedTerceiroLugar || [];
-        resultadosFinais = savedResultadosFinais || {};
-
-        // Atualiza a interface com os dados salvos
-        updateListaDuplas();
-        
-        // Reconstruir os jogos da fase de grupos
-        const faseGruposDiv = document.getElementById('faseGrupos');
-        faseGruposDiv.innerHTML = '';
-        for (let grupoIndex = 0; grupoIndex < jogos.length / 2; grupoIndex++) {
-            const grupoDiv = document.createElement('div');
-            grupoDiv.innerHTML = `<h3>Grupo ${grupoIndex + 1}</h3>`;
-            const grupoJogos = jogos.filter(j => j.grupoIndex === grupoIndex);
-            grupoJogos.forEach(jogo => {
-                const jogoDiv = document.createElement('p');
-                jogoDiv.innerHTML = `
-                    Jogo ${jogo.jogoIndex + 1}: ${jogo.dupla1.join(' e ')} vs ${jogo.dupla2.join(' e ')}
-                    <input type="tel" id="placar_${jogo.grupoIndex}_${jogo.jogoIndex}" value="${jogo.placar}" ${jogo.submetido ? 'disabled' : ''} placeholder="Placar (ex: 6-1)">
-                    <button onclick="${jogo.submetido ? 'editarPlacar(' + jogo.grupoIndex + ',' + jogo.jogoIndex + ')' : 'submeterPlacar(' + jogo.grupoIndex + ',' + jogo.jogoIndex + ')' }">${jogo.submetido ? 'Editar' : 'Submeter'}</button>
-                `;
-                grupoDiv.appendChild(jogoDiv);
-            });
-            faseGruposDiv.appendChild(grupoDiv);
-        }
-
-        // Fase Eliminatória
-        const faseEliminatoriaDiv = document.getElementById('faseEliminatoria');
-        faseEliminatoriaDiv.innerHTML = '<h3>Fase Eliminatória</h3>';
-        jogosEliminatoria.forEach(jogo => {
-            const jogoDiv = document.createElement('p');
-            jogoDiv.innerHTML = `
-                Jogo ${jogo.jogoIndex + 1}: ${jogo.dupla1.join(' e ')} vs ${jogo.dupla2.join(' e ')}
-                <input type="tel" id="placar_eliminatoria_${jogo.jogoIndex}" value="${jogo.placar}" ${jogo.submetido ? 'disabled' : ''} placeholder="Placar (ex: 6-1)">
-                <button onclick="${jogo.submetido ? 'editarPlacarEliminatoria(' + jogo.jogoIndex + ')' : 'submeterPlacarEliminatoria(' + jogo.jogoIndex + ')' }">${jogo.submetido ? 'Editar' : 'Submeter'}</button>
-            `;
-            faseEliminatoriaDiv.appendChild(jogoDiv);
-        });
-
-        // Mostra ou esconde botões conforme o estado do torneio
-        document.getElementById('sortearChaves').disabled = duplas.length < minDuplas;
-        document.getElementById('encerrarEtapa').style.display = jogos.length > 0 ? 'block' : 'none';
-        document.getElementById('encerrarEtapaEliminatoria').style.display = jogosEliminatoria.some(j => j.submetido) ? 'block' : 'none';
-        document.getElementById('encerrarCampeonato').style.display = (finalistas.length && terceiroLugar.length) ? 'block' : 'none';
-
-        // Final e Terceiro Lugar
-        if (finalistas.length && terceiroLugar.length) {
-            faseEliminatoriaDiv.innerHTML += `
-                <h3>Final</h3>
-                <p>Final: ${finalistas[0].join(' e ')} vs ${finalistas[1].join(' e ')}
-                <input type="tel" id="placar_final" value="${resultadosFinais.final || ''}" ${resultadosFinais.final ? 'disabled' : ''} placeholder="Placar (ex: 6-1)">
-                <button onclick="${resultadosFinais.final ? 'editarPlacarFinal()' : 'submeterPlacarFinal()'}">${resultadosFinais.final ? 'Editar' : 'Submeter'}</button></p>
-                <h3>Disputa pelo Terceiro Lugar</h3>
-                <p>Disputa pelo Terceiro Lugar: ${terceiroLugar[0].join(' e ')} vs ${terceiroLugar[1].join(' e ')}
-                <input type="tel" id="placar_terceiro" value="${resultadosFinais.terceiro || ''}" ${resultadosFinais.terceiro ? 'disabled' : ''} placeholder="Placar (ex: 6-1)">
-                <button onclick="${resultadosFinais.terceiro ? 'editarPlacarTerceiro()' : 'submeterPlacarTerceiro()'}">${resultadosFinais.terceiro ? 'Editar' : 'Submeter'}</button></p>
-            `;
-        }
+        // Atualiza a fase atual
+        document.getElementById('faseAtual').textContent = 'Torneio Encerrado';
+        document.getElementById('faseAtual').style.display = 'block';
     }
 }
 
-function salvarCampeonato() {
-    const nomeTorneio = document.getElementById('nomeTorneio').value.trim();
-    const dataTorneio = document.getElementById('dataTorneio').value;
-    
-    if (!nomeTorneio || !dataTorneio) {
-        alert('Por favor, insira ambos o nome e a data do torneio.');
+function transitarParaProximaFase(nextPhase, vencedores) {
+    const nextPhaseDetailsId = `${nextPhase.toLowerCase()}Details`;
+    const nextPhaseDivId = nextPhase.toLowerCase();
+
+    const nextPhaseDetails = document.getElementById(nextPhaseDetailsId);
+    if (!nextPhaseDetails) {
+        console.error('Elemento da próxima fase não encontrado:', nextPhaseDetailsId);
         return;
     }
+    nextPhaseDetails.style.display = 'block';
+    nextPhaseDetails.open = true;
 
-    const campeonato = {
-        torneio: nomeTorneio,
-        data: dataTorneio,
-        duplas: duplas,
-        jogos: jogos,
-        jogosEliminatoria: jogosEliminatoria,
-        finalistas: finalistas,
-        terceiroLugar: terceiroLugar,
-        resultadosFinais: resultadosFinais
-    };
+    const nextPhaseDiv = document.getElementById(nextPhaseDivId);
+    if (!nextPhaseDiv) {
+        console.error('Div da próxima fase não encontrado:', nextPhaseDivId);
+        return;
+    }
+    nextPhaseDiv.innerHTML = `<h3>${nextPhase}</h3>`;
+    
+    jogosEliminatoria = [];
+    for (let i = 0; i < vencedores.length; i += 2) {
+        jogosEliminatoria.push({
+            dupla1: vencedores[i],
+            dupla2: vencedores[i + 1] || ['Bye', ''], // Adiciona 'Bye' se necessário
+            placar: '',
+            submetido: false,
+            jogoIndex: jogosEliminatoria.length
+        });
+    }
 
-    // Adicionar ao localStorage
-    let campeonatos = JSON.parse(localStorage.getItem('campeonatos') || '[]');
-    campeonatos.push(campeonato);
-    localStorage.setItem('campeonatos', JSON.stringify(campeonatos));
+    renderizarJogosParaFase(nextPhase.toLowerCase(), jogosEliminatoria, nextPhaseDiv);
 
-    alert('Campeonato salvo com sucesso!');
-
-    // Resetar o estado atual do torneio
-    localStorage.removeItem('torneioEstado');
-    location.reload(); // Recarrega a página para limpar o estado atual
+    document.getElementById('faseAtual').textContent = nextPhase;
+    document.getElementById('encerrarEtapaEliminatoria').style.display = 'block';
+    document.getElementById('encerrarEtapa').style.display = 'none';
 }
 
-function limparCampos() {
-    if (confirm('Tem certeza que deseja limpar todos os campos?')) {
-        duplas = [];
-        jogos = [];
-        duplasClassificadas = [];
-        jogosEliminatoria = [];
-        finalistas = [];
-        terceiroLugar = [];
-        resultadosFinais = {};
-        
-        // Limpa a lista de duplas
-        document.getElementById('duplasListadas').innerHTML = '';
-        
-        // Limpa os campos de entrada de jogadores
-        document.getElementById('jogador1').value = '';
-        document.getElementById('jogador2').value = '';
-        
-        // Limpa as fases do torneio
-        document.getElementById('faseGrupos').innerHTML = '';
-        document.getElementById('faseEliminatoria').innerHTML = '';
-        document.getElementById('rankingFinal').innerHTML = '';
-
-        // Esconde botões
-        document.getElementById('encerrarEtapa').style.display = 'none';
-        document.getElementById('encerrarEtapaEliminatoria').style.display = 'none';
-        document.getElementById('encerrarCampeonato').style.display = 'none';
-        document.getElementById('salvarCampeonato').style.display = 'none';
-        
-        // Habilita/desabilita botões conforme o estado inicial
-        document.getElementById('sortearChaves').disabled = true;
-        
-        // Limpa o estado salvo
-        localStorage.removeItem('torneioEstado');
-
-        // Atualiza o estado da interface
-        document.getElementById('organogramaSection').style.display = 'none';
+function atualizarBotaoEncerrarEtapa() {
+    const botaoEncerrar = document.getElementById('encerrarEtapa');
+    if (botaoEncerrar) {
+        switch(document.getElementById('faseAtual').textContent.trim().toLowerCase()) {
+            case 'fase de grupos':
+                botaoEncerrar.textContent = 'Encerrar Fase de Grupos';
+                botaoEncerrar.onclick = encerrarEtapa;
+                break;
+            case 'quartas de final':
+                botaoEncerrar.textContent = 'Encerrar Quartas de Final';
+                botaoEncerrar.onclick = encerrarEtapaEliminatoria;
+                break;
+            case 'semifinal':
+                botaoEncerrar.textContent = 'Encerrar Semifinal';
+                botaoEncerrar.onclick = encerrarSemifinal; // Supondo que você tenha essa função
+                break;
+            case 'final':
+                botaoEncerrar.textContent = 'Encerrar Torneio';
+                botaoEncerrar.onclick = encerrarCampeonato; // Supondo que você tenha essa função
+                break;
+            default:
+                botaoEncerrar.textContent = 'Encerrar Etapa';
+                botaoEncerrar.onclick = encerrarEtapaEliminatoria;
+        }
+        botaoEncerrar.style.display = 'block';
+    } else {
+        console.error("Botão 'encerrarEtapa' não encontrado.");
     }
 }
 
-// Ao sair da página
-window.addEventListener('beforeunload', function(e) {
-    // Salva o estado atual da página (exemplo: scroll position)
-    sessionStorage.setItem('scrollPosition', window.scrollY);
-});
+function atualizarEstatisticas(jogo) {
+    const [set1, set2] = jogo.placar.split('-').map(Number);
+    const vencedor = set1 > set2 ? jogo.dupla1 : jogo.dupla2;
+    const perdedor = vencedor === jogo.dupla1 ? jogo.dupla2 : jogo.dupla1;
 
-// Ao carregar a página
-window.addEventListener('load', function() {
-    // Recupera o estado salvo
-    var scrollPosition = sessionStorage.getItem('scrollPosition');
-    if (scrollPosition) {
-        window.scrollTo(0, parseInt(scrollPosition));
+    function updateStats(dupla, pontos) {
+        const duplaKey = dupla.join(',');
+        if (!duplasEstatisticas[duplaKey]) {
+            duplasEstatisticas[duplaKey] = { jogos: 0, pontos: 0, setsVencidos: 0, setsPerdidos: 0 };
+        }
+        duplasEstatisticas[duplaKey].jogos++;
+        duplasEstatisticas[duplaKey].pontos += pontos;
+        if (dupla === vencedor) {
+            duplasEstatisticas[duplaKey].setsVencidos += set1;
+            duplasEstatisticas[duplaKey].setsPerdidos += set2;
+        } else {
+            duplasEstatisticas[duplaKey].setsVencidos += set2;
+            duplasEstatisticas[duplaKey].setsPerdidos += set1;
+        }
     }
-});
+
+    updateStats(vencedor, 3); // Supondo 3 pontos por vitória
+    updateStats(perdedor, 1); // Supondo 1 ponto por derrota
+}

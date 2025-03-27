@@ -9,18 +9,17 @@ const chavesDiv = document.getElementById('chaves');
 const salvarCampeonatoBtn = document.getElementById('salvarCampeonato');
 const voltarParaHomeBtn = document.getElementById('voltarParaHome');
 const todosContraTodosCheckbox = document.getElementById('todosContraTodos');
+const limparCamposBtn = document.getElementById('limparCampos');
 
 let jogadores = [];
 let duplas = [];
 let jogos = [];
 let dadosAlterados = false;
 
-// Função para Normalizar Nomes (agora apenas para maiúsculas)
 function normalizarNome(nome) {
     return nome.toUpperCase().trim();
 }
 
-// Função para salvar o estado dos dados
 function salvarEstado() {
     const estadoAtual = {
         jogadores,
@@ -33,8 +32,7 @@ function salvarEstado() {
     dadosAlterados = true;
 }
 
-// Carregar estado completo do localStorage ao carregar a página
-document.addEventListener('DOMContentLoaded', () => {
+function carregarEstadoSalvo() {
     const savedState = localStorage.getItem('currentState');
     if (savedState) {
         try {
@@ -46,24 +44,27 @@ document.addEventListener('DOMContentLoaded', () => {
             dataTorneioInput.value = dataTorneio || '';
 
             atualizarListaJogadores();
-            if (duplas.length > 0) {
+            if (duplas.length > 0 || jogos.length > 0) {
                 gerarChaves();
             }
         } catch (error) {
             console.error("Erro ao restaurar estado:", error);
-            localStorage.removeItem('currentState'); // Limpa dados inválidos
+            localStorage.removeItem('currentState');
         }
     }
-});
+}
 
-// Adicionar jogador ao pressionar Enter
-nomeJogadorInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        adicionarJogador();
+document.addEventListener('DOMContentLoaded', carregarEstadoSalvo);
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        carregarEstadoSalvo();
     }
 });
 
-// Adicionar jogador ao clicar no botão
+nomeJogadorInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') adicionarJogador();
+});
+
 adicionarJogadorBtn.addEventListener('click', adicionarJogador);
 
 function adicionarJogador() {
@@ -103,10 +104,8 @@ function atualizarListaJogadores() {
     });
 }
 
-// Sortear duplas
 sortearDuplasBtn.addEventListener('click', () => {
     const todosContraTodos = todosContraTodosCheckbox.checked;
-    
     if (todosContraTodos) {
         if (jogadores.length < 4) {
             alert('Para o modo "Todos contra Todos", são necessários pelo menos 4 jogadores!');
@@ -114,7 +113,6 @@ sortearDuplasBtn.addEventListener('click', () => {
         }
         sortearTodosContraTodos();
     } else {
-        // Se não for todos contra todos, usa a lógica de duplas
         if (jogadores.length < 4 || jogadores.length % 2 !== 0) {
             alert('Para formar duplas, é necessário pelo menos 4 jogadores e um número par de jogadores!');
             return;
@@ -131,8 +129,7 @@ sortearDuplasBtn.addEventListener('click', () => {
 
 function submeterJogo(index, btn, input) {
     const jogo = jogos[index];
-    const placar = jogo.placar;
-
+    const placar = input.value;
     if (/^\d+-\d+$/.test(placar)) {
         if (!jogo.submetido) {
             input.disabled = true;
@@ -145,6 +142,7 @@ function submeterJogo(index, btn, input) {
             btn.textContent = 'Submeter';
             btn.classList.remove('edit-button');
         }
+        jogo.placar = placar;
         salvarEstado();
     } else {
         alert('Formato de placar inválido. Use "X-Y", por exemplo, "6-1".');
@@ -173,28 +171,14 @@ function criarElementoPlacar(jogo, index) {
     });
 
     const submeterBtn = document.createElement('button');
-    submeterBtn.textContent = 'Submeter';
-    submeterBtn.className = 'submeter-jogo';
-    submeterBtn.style.display = jogo.submetido ? 'none' : 'inline';
+    submeterBtn.textContent = jogo.submetido ? 'Editar' : 'Submeter';
+    submeterBtn.className = jogo.submetido ? 'edit-button' : 'submeter-jogo';
     submeterBtn.addEventListener('click', () => {
         submeterJogo(index, submeterBtn, inputPlacar);
     });
 
-    const editarBtn = document.createElement('button');
-    editarBtn.textContent = 'Editar';
-    editarBtn.className = 'editar-placar';
-    editarBtn.style.display = jogo.submetido ? 'inline' : 'none';
-    editarBtn.addEventListener('click', () => {
-        inputPlacar.disabled = false;
-        jogo.submetido = false;
-        submeterBtn.style.display = 'inline';
-        editarBtn.style.display = 'none';
-        salvarEstado();
-    });
-
     placarContainer.appendChild(inputPlacar);
     placarContainer.appendChild(submeterBtn);
-    placarContainer.appendChild(editarBtn);
 
     return placarContainer;
 }
@@ -217,12 +201,14 @@ function criarElementoJogo(jogo, index) {
 
 function gerarChaves() {
     chavesDiv.innerHTML = '';
-    jogos = [];
+    jogos = jogos.length > 0 ? jogos : [];
     const fragment = document.createDocumentFragment();
 
-    for (let i = 0; i < duplas.length; i++) {
-        for (let j = i + 1; j < duplas.length; j++) {
-            jogos.push({ dupla1: duplas[i], dupla2: duplas[j], placar: '', submetido: false });
+    if (jogos.length === 0 && duplas.length > 0) {
+        for (let i = 0; i < duplas.length; i++) {
+            for (let j = i + 1; j < duplas.length; j++) {
+                jogos.push({ dupla1: duplas[i], dupla2: duplas[j], placar: '', submetido: false });
+            }
         }
     }
 
@@ -234,8 +220,6 @@ function gerarChaves() {
     chavesDiv.appendChild(fragment);
 }
 
-
-// Salvar campeonato
 salvarCampeonatoBtn.addEventListener('click', () => {
     const nomeTorneio = nomeTorneioInput.value.trim();
     const dataTorneio = dataTorneioInput.value;
@@ -254,27 +238,23 @@ salvarCampeonatoBtn.addEventListener('click', () => {
     let campeonatos = JSON.parse(localStorage.getItem('campeonatos') || '[]');
     campeonatos.push(resultados);
     localStorage.setItem('campeonatos', JSON.stringify(campeonatos));
-    console.log('Campeonato salvo:', resultados);
     alert('Campeonato salvo com sucesso!');
 
-    // Limpar o estado local e redirecionar para index.html
-    localStorage.removeItem('currentState');
-    dadosAlterados = false; // Resetando o estado de dados alterados
-    window.location.href = 'index.html'; // Redireciona para a página inicial
-});
-
-// Voltar para a página inicial
-voltarParaHomeBtn.addEventListener('click', () => {
-    if (dadosAlterados) {
-        if (confirm('Tem certeza que deseja sair? Alterações não salvas serão perdidas.')) {
-            window.location.href = 'index.html';  // Redirecionamento, não recarregamento
-        }
-    } else {
-        window.location.href = 'index.html';  // Redirecionamento, não recarregamento
+    if (confirm('Deseja limpar os dados e voltar para a página inicial?')) {
+        localStorage.removeItem('currentState');
+        dadosAlterados = false;
+        window.location.href = 'index.html';
     }
 });
 
-document.getElementById('limparCampos').addEventListener('click', () => {
+voltarParaHomeBtn.addEventListener('click', () => {
+    if (dadosAlterados && !confirm('Tem certeza que deseja sair? Alterações não salvas serão perdidas.')) {
+        return;
+    }
+    window.location.href = 'index.html';
+});
+
+limparCamposBtn.addEventListener('click', () => {
     if (confirm('Tem certeza que deseja limpar todos os campos?')) {
         jogadores = [];
         duplas = [];
@@ -285,11 +265,11 @@ document.getElementById('limparCampos').addEventListener('click', () => {
         dataTorneioInput.value = '';
         nomeJogadorInput.value = '';
         localStorage.removeItem('currentState');
+        dadosAlterados = false;
         nomeJogadorInput.focus();
     }
 });
 
-// Sortear todos contra todos
 function sortearTodosContraTodos() {
     chavesDiv.innerHTML = '';
     jogos = [];
@@ -303,7 +283,6 @@ function sortearTodosContraTodos() {
 
     const uniqueGames = new Set();
 
-    // Gerar todos os jogos possíveis
     for (let i = 0; i < jogadores.length; i++) {
         for (let j = i + 1; j < jogadores.length; j++) {
             for (let k = 0; k < jogadores.length; k++) {
@@ -327,78 +306,18 @@ function sortearTodosContraTodos() {
         }
     }
 
-    // Gerando a interface para cada jogo
     jogos.forEach((jogo, index) => {
-        const jogoDiv = document.createElement('div');
-        jogoDiv.className = 'jogo';
-        jogoDiv.setAttribute('aria-label', `${jogo.dupla1.join(' e ')} vs ${jogo.dupla2.join(' e ')}`);
-
-        const jogoInfo = document.createElement('span');
-        jogoInfo.textContent = `${jogo.dupla1.join(' e ')} vs ${jogo.dupla2.join(' e ')}`;
-
-        const placarContainer = document.createElement('div');
-        placarContainer.className = 'placar-container';
-
-        const inputPlacar = document.createElement('input');
-        inputPlacar.type = 'tel'; // Mude de 'text' para 'tel' aqui
-        inputPlacar.placeholder = 'Placar (ex: 6-1)';
-        inputPlacar.dataset.index = index;
-        inputPlacar.value = jogo.placar;
-        inputPlacar.disabled = jogo.submetido;
-        inputPlacar.addEventListener('change', (e) => {
-            const placar = e.target.value;
-            if (/^\d+-\d+$/.test(placar)) {
-                jogos[e.target.dataset.index].placar = placar;
-                salvarEstado(); // Salvar estado ao mudar placar
-            } else {
-                alert('Formato de placar inválido. Use "X-Y", por exemplo, "6-1".');
-                e.target.value = '';
-            }
-        });
-
-        const submeterBtn = document.createElement('button');
-        submeterBtn.textContent = 'Submeter';
-        submeterBtn.className = 'submeter-jogo';
-        submeterBtn.style.display = jogo.submetido ? 'none' : 'inline';
-        submeterBtn.addEventListener('click', () => {
-            submeterJogo(index, submeterBtn, inputPlacar);
-        });
-
-        const editarBtn = document.createElement('button');
-        editarBtn.textContent = 'Editar';
-        editarBtn.className = 'editar-placar';
-        editarBtn.style.display = jogo.submetido ? 'inline' : 'none';
-        editarBtn.addEventListener('click', () => {
-            inputPlacar.disabled = false;
-            jogo.submetido = false;
-            submeterBtn.style.display = 'inline';
-            editarBtn.style.display = 'none';
-            salvarEstado(); // Salvar estado ao editar placar
-        });
-
-        placarContainer.appendChild(inputPlacar);
-        placarContainer.appendChild(submeterBtn);
-        placarContainer.appendChild(editarBtn);
-
-        jogoDiv.appendChild(jogoInfo);
-        jogoDiv.appendChild(placarContainer);
+        const jogoDiv = criarElementoJogo(jogo, index);
         fragment.appendChild(jogoDiv);
     });
 
     chavesDiv.appendChild(fragment);
 }
 
-// Ao sair da página
-window.addEventListener('beforeunload', function(e) {
-    // Salva o estado atual da página (exemplo: scroll position)
-    sessionStorage.setItem('scrollPosition', window.scrollY);
-});
-
-// Ao carregar a página
-window.addEventListener('load', function() {
-    // Recupera o estado salvo
-    var scrollPosition = sessionStorage.getItem('scrollPosition');
-    if (scrollPosition) {
-        window.scrollTo(0, parseInt(scrollPosition));
+window.addEventListener('beforeunload', (e) => {
+    if (dadosAlterados) {
+        const mensagem = 'Você tem alterações não salvas. Tem certeza que deseja sair?';
+        e.returnValue = mensagem;
+        return mensagem;
     }
 });
